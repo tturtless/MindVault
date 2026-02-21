@@ -1,0 +1,1832 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>MindVault · Memory Games</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --card: #1a1a26;
+    --border: #2a2a40;
+    --accent: #7c5cfc;
+    --accent2: #fc5c7d;
+    --accent3: #5cf8c8;
+    --text: #e8e8f0;
+    --muted: #6a6a88;
+    --success: #5cf8c8;
+    --danger: #fc5c7d;
+    --glow: rgba(124,92,252,0.3);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    height: 100%; width: 100%; overflow: hidden;
+    background: var(--bg); color: var(--text);
+    font-family: 'DM Mono', monospace;
+    touch-action: manipulation;
+  }
+
+  /* ---- SCREENS ---- */
+  .screen { 
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    overflow-y: auto; overflow-x: hidden;
+    opacity: 0; pointer-events: none; transition: opacity 0.35s ease;
+  }
+  .screen.active { opacity: 1; pointer-events: all; }
+
+  /* ---- HOME ---- */
+  #home {
+    background: var(--bg);
+    padding: 0;
+    align-items: stretch;
+  }
+  .home-header {
+    padding: 60px 28px 20px;
+    position: relative;
+    background: linear-gradient(160deg, #14142a 0%, var(--bg) 100%);
+  }
+  .home-header::after {
+    content: '';
+    position: absolute; bottom: 0; left: 0; right: 0; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--border), transparent);
+  }
+  .logo-row { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+  .logo-icon {
+    width: 42px; height: 42px; border-radius: 12px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; box-shadow: 0 0 20px var(--glow);
+  }
+  .logo-text {
+    font-family: 'Syne', sans-serif; font-weight: 800;
+    font-size: 26px; letter-spacing: -0.5px;
+    background: linear-gradient(90deg, var(--text), var(--muted));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .tagline { color: var(--muted); font-size: 12px; letter-spacing: 0.05em; margin-top: 4px; }
+
+  .stats-row {
+    display: flex; gap: 12px; padding: 20px 28px;
+    overflow-x: auto; scrollbar-width: none;
+  }
+  .stats-row::-webkit-scrollbar { display: none; }
+  .stat-chip {
+    flex-shrink: 0; background: var(--card); border: 1px solid var(--border);
+    border-radius: 10px; padding: 10px 16px; text-align: center; min-width: 90px;
+  }
+  .stat-chip .val { font-family: 'Syne', sans-serif; font-size: 22px; font-weight: 800; color: var(--accent); }
+  .stat-chip .lbl { font-size: 10px; color: var(--muted); margin-top: 2px; letter-spacing: 0.08em; }
+
+  .section-label {
+    padding: 0 28px 12px;
+    font-size: 10px; letter-spacing: 0.15em; color: var(--muted); text-transform: uppercase;
+  }
+  .games-grid {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 14px; padding: 0 28px 40px; 
+  }
+  .game-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 18px; padding: 20px 16px;
+    cursor: pointer; transition: all 0.2s ease;
+    position: relative; overflow: hidden;
+    -webkit-user-select: none; user-select: none;
+    active: scale(0.97);
+  }
+  .game-card:active { transform: scale(0.96); }
+  .game-card::before {
+    content: ''; position: absolute; inset: 0;
+    opacity: 0; transition: opacity 0.3s;
+    border-radius: 18px;
+  }
+  .game-card.c1::before { background: radial-gradient(circle at top left, rgba(124,92,252,0.15), transparent 70%); }
+  .game-card.c2::before { background: radial-gradient(circle at top left, rgba(252,92,125,0.15), transparent 70%); }
+  .game-card.c3::before { background: radial-gradient(circle at top left, rgba(92,248,200,0.15), transparent 70%); }
+  .game-card.c4::before { background: radial-gradient(circle at top left, rgba(248,200,92,0.15), transparent 70%); }
+  .game-card.c5::before { background: radial-gradient(circle at top left, rgba(92,148,248,0.15), transparent 70%); }
+  .game-card.c6::before { background: radial-gradient(circle at top left, rgba(200,92,248,0.15), transparent 70%); }
+  .game-card:active::before { opacity: 1; }
+  .game-card .icon {
+    font-size: 32px; margin-bottom: 12px; display: block;
+    filter: drop-shadow(0 0 8px rgba(255,255,255,0.1));
+  }
+  .game-card .gname {
+    font-family: 'Syne', sans-serif; font-weight: 700;
+    font-size: 14px; color: var(--text); margin-bottom: 4px;
+  }
+  .game-card .gdesc { font-size: 10px; color: var(--muted); line-height: 1.5; }
+  .game-card .gbadge {
+    position: absolute; top: 12px; right: 12px;
+    font-size: 9px; padding: 3px 7px; border-radius: 6px;
+    letter-spacing: 0.06em;
+  }
+  .badge-new { background: rgba(92,248,200,0.15); color: var(--accent3); border: 1px solid rgba(92,248,200,0.3); }
+  .badge-hot { background: rgba(252,92,125,0.15); color: var(--accent2); border: 1px solid rgba(252,92,125,0.3); }
+
+  /* ---- GAME SCREEN ---- */
+  #game-screen {
+    background: var(--bg);
+  }
+  .game-nav {
+    display: flex; align-items: center; gap: 14px;
+    padding: 54px 20px 14px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .btn-back {
+    width: 38px; height: 38px; border-radius: 10px;
+    background: var(--card); border: 1px solid var(--border);
+    color: var(--text); font-size: 18px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; transition: background 0.2s;
+  }
+  .btn-back:active { background: var(--border); }
+  .nav-title { font-family: 'Syne', sans-serif; font-weight: 700; font-size: 18px; flex: 1; }
+  .nav-score { 
+    font-family: 'Syne', sans-serif; font-weight: 800;
+    font-size: 18px; color: var(--accent);
+  }
+
+  .game-container { flex: 1; display: flex; flex-direction: column; overflow-y: auto; }
+  .game-info-bar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 20px; gap: 10px; flex-shrink: 0;
+  }
+  .info-chip {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 8px; padding: 7px 12px;
+    font-size: 11px; color: var(--muted);
+    display: flex; align-items: center; gap: 6px;
+  }
+  .info-chip span { color: var(--text); font-weight: 500; }
+  .btn-action {
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none; border-radius: 10px; color: #fff;
+    font-family: 'Syne', sans-serif; font-weight: 700;
+    font-size: 13px; padding: 9px 16px; cursor: pointer;
+    letter-spacing: 0.03em; transition: opacity 0.2s;
+    box-shadow: 0 4px 16px rgba(124,92,252,0.3);
+  }
+  .btn-action:active { opacity: 0.8; transform: scale(0.97); }
+  #game-area { flex: 1; padding: 10px 16px 24px; }
+
+  /* ---- CARD FLIP GAME ---- */
+  .flip-grid {
+    display: grid; gap: 10px;
+    width: 100%; max-width: 420px; margin: 0 auto;
+  }
+  .flip-card {
+    aspect-ratio: 1; border-radius: 14px; cursor: pointer;
+    position: relative; transform-style: preserve-3d;
+    transition: transform 0.45s cubic-bezier(0.4,0,0.2,1);
+    -webkit-tap-highlight-color: transparent;
+  }
+  .flip-card.flipped { transform: rotateY(180deg); }
+  .flip-card.matched .card-back { 
+    background: linear-gradient(135deg, #1e3a2a, #162e22) !important;
+    border-color: var(--success) !important;
+    box-shadow: 0 0 16px rgba(92,248,200,0.25);
+  }
+  .card-face {
+    position: absolute; inset: 0; border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    backface-visibility: hidden; -webkit-backface-visibility: hidden;
+    border: 1px solid var(--border);
+  }
+  .card-front {
+    background: var(--card);
+    background-image: repeating-linear-gradient(
+      45deg, rgba(255,255,255,0.015) 0px, rgba(255,255,255,0.015) 1px,
+      transparent 1px, transparent 12px
+    );
+  }
+  .card-front .q-mark { font-size: 24px; color: var(--border); }
+  .card-back {
+    background: linear-gradient(135deg, #1e1e3a, #2a1e3a);
+    border-color: var(--accent);
+    transform: rotateY(180deg);
+    font-size: clamp(20px, 5vw, 32px);
+  }
+
+  /* ---- SIMON SAYS (redesign) ---- */
+  .simon-wrap {
+    display: flex; flex-direction: column; align-items: center;
+    gap: 20px; padding: 10px 0;
+  }
+  .simon-status {
+    font-family: 'Syne', sans-serif; font-weight: 700;
+    font-size: 15px; color: var(--muted); letter-spacing: 0.05em;
+    text-align: center; min-height: 24px;
+  }
+  /* The 4 pads arranged in a cross/compass layout */
+  .simon-cross {
+    position: relative;
+    width: min(280px, 82vw);
+    height: min(280px, 82vw);
+  }
+  .simon-pad {
+    position: absolute;
+    width: calc(50% - 6px);
+    height: calc(50% - 6px);
+    border: none; cursor: pointer;
+    /* no transition — state is toggled cleanly via JS */
+    display: flex; align-items: center; justify-content: center;
+    font-size: 28px;
+  }
+  /* Rounded outer corners only, inner corners sharp — quadrant style */
+  .sp-tl { top: 0; left: 0;    border-radius: 50% 8px 8px 8px; }
+  .sp-tr { top: 0; right: 0;   border-radius: 8px 50% 8px 8px; }
+  .sp-bl { bottom: 0; left: 0;  border-radius: 8px 8px 8px 50%; }
+  .sp-br { bottom: 0; right: 0; border-radius: 8px 8px 50% 8px; }
+
+  /* dim state */
+  .simon-pad.dim  { filter: brightness(0.35) saturate(0.5); }
+  /* lit state — instant, no transition */
+  .simon-pad.glow { filter: brightness(1.25) saturate(1.4); box-shadow: 0 0 40px 8px var(--sp-glow); }
+
+  /* per-pad colours */
+  .sp-0 { background: #e63946; --sp-glow: rgba(230,57,70,0.7);   }
+  .sp-1 { background: #2ec4b6; --sp-glow: rgba(46,196,182,0.7);  }
+  .sp-2 { background: #f4c430; --sp-glow: rgba(244,196,48,0.7);  }
+  .sp-3 { background: #4a90d9; --sp-glow: rgba(74,144,217,0.7);  }
+
+  /* centre hub */
+  .simon-hub {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    width: 64px; height: 64px; border-radius: 50%;
+    background: var(--bg); border: 2px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 2; pointer-events: none;
+  }
+  .simon-hub-inner {
+    width: 44px; height: 44px; border-radius: 50%;
+    background: var(--surface); border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .simon-level {
+    font-family: 'Syne', sans-serif; font-size: 13px; color: var(--muted);
+  }
+  .simon-level span { color: var(--accent); font-weight: 800; }
+
+  /* ---- NUMBER SEQUENCE ---- */
+  .numseq-wrap { display: flex; flex-direction: column; align-items: center; gap: 18px; padding: 4px 0; }
+  .numseq-display {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 18px; padding: 20px 30px; text-align: center;
+    min-width: 200px;
+  }
+  .numseq-display .seq-label { font-size: 10px; color: var(--muted); letter-spacing: 0.1em; margin-bottom: 8px; }
+  .numseq-display .seq-nums {
+    font-family: 'Syne', sans-serif; font-weight: 800;
+    font-size: clamp(24px, 7vw, 36px); letter-spacing: 8px;
+    color: var(--accent); min-height: 48px;
+    display: flex; align-items: center; justify-content: center;
+    gap: 6px;
+  }
+  .seq-digit { transition: all 0.2s; }
+  .seq-digit.hidden { opacity: 0; }
+  .numseq-input-row {
+    display: flex; gap: 8px; flex-wrap: wrap; justify-content: center;
+    max-width: 320px;
+  }
+  .numpad {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 10px; width: min(260px, 80vw);
+  }
+  .numpad-btn {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; color: var(--text);
+    font-family: 'Syne', sans-serif; font-weight: 700;
+    font-size: 20px; padding: 16px 0; cursor: pointer;
+    transition: all 0.15s; -webkit-tap-highlight-color: transparent;
+  }
+  .numpad-btn:active { background: var(--accent); color: #fff; transform: scale(0.95); }
+  .numpad-btn.del { font-size: 16px; color: var(--accent2); }
+  .numpad-btn.submit { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #fff; border-color: transparent; font-size: 14px; }
+  .user-answer {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 12px 20px; width: min(260px, 80vw);
+    text-align: center; font-family: 'Syne', sans-serif;
+    font-size: 24px; font-weight: 800; color: var(--text);
+    min-height: 52px; letter-spacing: 6px;
+  }
+
+  /* ---- WORD MEMORY ---- */
+  .word-wrap { display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 4px 0; }
+  .word-display {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 18px; padding: 24px 28px; width: 100%; max-width: 340px;
+    text-align: center;
+  }
+  .word-list {
+    display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; min-height: 60px;
+  }
+  .word-pill {
+    background: rgba(124,92,252,0.15); border: 1px solid rgba(124,92,252,0.3);
+    border-radius: 50px; padding: 8px 16px;
+    font-family: 'Syne', sans-serif; font-size: 14px; color: var(--text);
+    animation: popIn 0.3s ease;
+  }
+  @keyframes popIn { from { transform: scale(0.7); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .word-options {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 10px; width: 100%; max-width: 340px;
+  }
+  .word-opt {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; color: var(--text);
+    font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 700;
+    padding: 14px 10px; cursor: pointer; text-align: center;
+    transition: all 0.2s;
+  }
+  .word-opt:active { transform: scale(0.96); }
+  .word-opt.correct { background: rgba(92,248,200,0.15); border-color: var(--success); color: var(--success); }
+  .word-opt.wrong { background: rgba(252,92,125,0.15); border-color: var(--danger); color: var(--danger); }
+  .wlabel { font-size: 10px; color: var(--muted); letter-spacing: 0.1em; margin-bottom: 14px; }
+
+  /* ---- COLOR MEMORY ---- */
+  .color-wrap { display: flex; flex-direction: column; align-items: center; gap: 20px; }
+  .color-sequence {
+    display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;
+    max-width: 300px;
+  }
+  .color-swatch {
+    width: 52px; height: 52px; border-radius: 12px;
+    border: 2px solid transparent; cursor: pointer;
+    transition: all 0.2s; position: relative;
+  }
+  .color-swatch.selected { border-color: #fff; transform: scale(1.1); }
+  .color-swatch.correct-s { box-shadow: 0 0 16px rgba(92,248,200,0.6); border-color: var(--success); }
+  .color-swatch.wrong-s { box-shadow: 0 0 16px rgba(252,92,125,0.6); border-color: var(--danger); }
+  .color-display {
+    width: 120px; height: 120px; border-radius: 28px;
+    border: 2px solid var(--border); transition: all 0.5s;
+  }
+  .color-prompt { font-family: 'Syne', sans-serif; font-size: 15px; color: var(--muted); text-align: center; }
+
+  /* ---- PATTERN MEMORY ---- */
+  .pattern-wrap { display: flex; flex-direction: column; align-items: center; gap: 18px; }
+  .pattern-grid-wrap {
+    position: relative;
+  }
+  .pattern-grid {
+    display: grid; gap: 8px;
+  }
+  .pattern-cell {
+    width: 70px; height: 70px; border-radius: 14px;
+    background: var(--card); border: 1px solid var(--border);
+    cursor: pointer; transition: all 0.2s;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .pattern-cell.lit {
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border-color: var(--accent); box-shadow: 0 0 20px var(--glow);
+  }
+  .pattern-cell.user-lit {
+    background: linear-gradient(135deg, var(--accent3), #2af0a0);
+    border-color: var(--accent3); box-shadow: 0 0 20px rgba(92,248,200,0.3);
+  }
+  .pattern-cell.wrong-cell {
+    background: linear-gradient(135deg, var(--accent2), #ff3060);
+    border-color: var(--accent2);
+  }
+  .pattern-status { font-family: 'Syne', sans-serif; font-size: 14px; color: var(--muted); text-align: center; min-height: 22px; }
+
+  /* ---- PATH TRACE ---- */
+  .path-wrap { display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 6px 0; }
+  .path-status { font-family: 'Syne', sans-serif; font-size: 14px; color: var(--muted); text-align: center; min-height: 22px; }
+  .path-grid { display: grid; gap: 10px; }
+  .path-cell {
+    width: 72px; height: 72px; border-radius: 16px;
+    background: var(--card); border: 2px solid var(--border);
+    cursor: pointer; transition: all 0.18s;
+    display: flex; align-items: center; justify-content: center; font-size: 22px;
+  }
+  .path-cell.active {
+    background: linear-gradient(135deg, var(--accent), #a07aff);
+    border-color: var(--accent); box-shadow: 0 0 22px var(--glow); transform: scale(1.07);
+  }
+  .path-cell.user-active {
+    background: linear-gradient(135deg, var(--accent3), #2af0a0);
+    border-color: var(--accent3); box-shadow: 0 0 18px rgba(92,248,200,0.4);
+  }
+  .path-cell.wrong-active { background: linear-gradient(135deg, var(--accent2), #ff3060); border-color: var(--accent2); }
+  .path-seq-display {
+    display: flex; gap: 6px; flex-wrap: wrap; justify-content: center;
+    max-width: 320px; min-height: 36px; align-items: center;
+  }
+  .path-dot {
+    width: 10px; height: 10px; border-radius: 50%; background: var(--accent); opacity: 0.3; transition: all 0.2s;
+  }
+  .path-dot.done { opacity: 1; background: var(--accent3); }
+  .path-dot.current { opacity: 1; background: var(--accent); box-shadow: 0 0 8px var(--glow); }
+
+  /* ---- DUAL TASK ---- */
+  .dual-wrap { display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 4px 0; }
+  .dual-phase-label {
+    font-size: 10px; letter-spacing: 0.15em; color: var(--muted); text-transform: uppercase;
+    background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 5px 14px;
+  }
+  .dual-mem-display {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 18px; padding: 22px 28px; text-align: center; width: 100%; max-width: 340px;
+  }
+  .dual-numbers {
+    font-family: 'Syne', sans-serif; font-weight: 800;
+    font-size: clamp(28px, 8vw, 42px); letter-spacing: 10px; color: var(--accent);
+    min-height: 52px; display: flex; align-items: center; justify-content: center;
+  }
+  .dual-math-box {
+    background: var(--card); border: 2px solid var(--accent);
+    border-radius: 20px; padding: 20px 28px; text-align: center; box-shadow: 0 0 24px var(--glow);
+    width: 100%; max-width: 340px;
+  }
+  .dual-math-eq { font-family: 'Syne', sans-serif; font-weight: 800; font-size: clamp(22px, 6vw, 34px); color: var(--text); margin-bottom: 12px; }
+  .dual-math-opts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 10px; }
+  .dual-opt {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 12px; color: var(--text);
+    font-family: 'Syne', sans-serif; font-size: 20px; font-weight: 800;
+    padding: 14px 0; cursor: pointer; transition: all 0.15s;
+  }
+  .dual-opt:active { transform: scale(0.95); }
+  .dual-opt.correct-a { background: rgba(92,248,200,0.2); border-color: var(--success); color: var(--success); }
+  .dual-opt.wrong-a   { background: rgba(252,92,125,0.2); border-color: var(--danger);  color: var(--danger);  }
+  .dual-recall-prompt { font-family: 'Syne', sans-serif; font-size: 14px; color: var(--muted); text-align: center; }
+  .dual-recall-opts { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; width: 100%; max-width: 340px; }
+  .dual-recall-opt {
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px; color: var(--text);
+    font-family: 'Syne', sans-serif; font-size: 18px; font-weight: 800;
+    padding: 14px 0; cursor: pointer; transition: all 0.15s;
+  }
+  .dual-recall-opt:active { transform: scale(0.95); }
+  .dual-recall-opt.correct-a { background: rgba(92,248,200,0.2); border-color: var(--success); color: var(--success); }
+  .dual-recall-opt.wrong-a   { background: rgba(252,92,125,0.2); border-color: var(--danger);  color: var(--danger);  }
+
+  /* ---- SPEED TAP ---- */
+  .speed-wrap { display: flex; flex-direction: column; align-items: center; gap: 18px; padding: 10px 0; }
+  .speed-target-area {
+    width: 100%; max-width: 340px; height: 220px;
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 20px; position: relative; overflow: hidden;
+  }
+  .speed-target {
+    position: absolute; width: 64px; height: 64px; border-radius: 50%;
+    background: radial-gradient(circle at 35% 35%, var(--accent), var(--accent2));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; cursor: pointer; transition: transform 0.1s;
+    box-shadow: 0 0 24px rgba(124,92,252,0.5);
+    transform: translate(-50%, -50%);
+    animation: pulse 0.8s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100%{box-shadow:0 0 24px rgba(124,92,252,0.5)} 50%{box-shadow:0 0 40px rgba(124,92,252,0.8)} }
+  .speed-target:active { transform: translate(-50%, -50%) scale(0.9); }
+  .speed-stats { display: flex; gap: 20px; }
+  .speed-stat { text-align: center; }
+  .speed-stat .v { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 28px; color: var(--accent); }
+  .speed-stat .l { font-size: 10px; color: var(--muted); letter-spacing: 0.08em; }
+  .speed-timer {
+    width: 100%; max-width: 340px; height: 6px;
+    background: var(--card); border-radius: 3px; overflow: hidden;
+  }
+  .speed-timer-bar {
+    height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2));
+    border-radius: 3px; transition: width 0.1s linear;
+  }
+  .speed-start-btn {
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none; border-radius: 16px; color: #fff;
+    font-family: 'Syne', sans-serif; font-weight: 800;
+    font-size: 18px; padding: 18px 48px; cursor: pointer;
+    box-shadow: 0 8px 32px rgba(124,92,252,0.4); letter-spacing: 0.05em;
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  .speed-start-btn:active { transform: scale(0.95); box-shadow: 0 4px 16px rgba(124,92,252,0.3); }
+
+  /* ---- RESULT OVERLAY ---- */
+  .result-overlay {
+    position: fixed; inset: 0; background: rgba(10,10,15,0.92);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 20px; opacity: 0; pointer-events: none;
+    transition: opacity 0.3s; z-index: 100; padding: 30px;
+    backdrop-filter: blur(8px);
+  }
+  .result-overlay.show { opacity: 1; pointer-events: all; }
+  .result-icon { font-size: 64px; animation: popIn 0.4s ease; }
+  .result-title {
+    font-family: 'Syne', sans-serif; font-weight: 800;
+    font-size: 32px; text-align: center;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .result-score { font-size: 14px; color: var(--muted); text-align: center; line-height: 1.8; }
+  .result-score strong { color: var(--text); }
+  .result-btns { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+  .btn-secondary {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; color: var(--text);
+    font-family: 'Syne', sans-serif; font-weight: 700;
+    font-size: 14px; padding: 13px 24px; cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-secondary:active { background: var(--border); }
+
+  /* ---- MISC ---- */
+  .progress-bar {
+    width: 100%; height: 4px; background: var(--border);
+    border-radius: 2px; overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2));
+    transition: width 0.4s ease;
+  }
+
+  /* Particles BG on home */
+  .bg-orbs {
+    position: fixed; inset: 0; pointer-events: none; z-index: 0; overflow: hidden;
+  }
+  .orb {
+    position: absolute; border-radius: 50%; filter: blur(80px);
+    animation: orb-drift 12s ease-in-out infinite alternate;
+  }
+  .orb1 { width: 300px; height: 300px; background: rgba(124,92,252,0.08); top: -80px; left: -100px; }
+  .orb2 { width: 200px; height: 200px; background: rgba(252,92,125,0.06); bottom: 100px; right: -60px; animation-delay: -4s; animation-duration: 15s; }
+  .orb3 { width: 150px; height: 150px; background: rgba(92,248,200,0.05); top: 50%; left: 50%; animation-delay: -8s; animation-duration: 18s; }
+  @keyframes orb-drift { from { transform: translate(0,0) scale(1); } to { transform: translate(30px,40px) scale(1.1); } }
+
+  #home > *:not(.bg-orbs) { position: relative; z-index: 1; }
+
+  /* countup anim */
+  @keyframes countup { from { transform: translateY(10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+</style>
+</head>
+<body>
+
+<div class="bg-orbs">
+  <div class="orb orb1"></div>
+  <div class="orb orb2"></div>
+  <div class="orb orb3"></div>
+</div>
+
+<!-- HOME SCREEN -->
+<div id="home" class="screen active">
+  <div class="home-header">
+    <div class="logo-row">
+      <div class="logo-icon">🧠</div>
+      <div class="logo-text">MindVault</div>
+    </div>
+    <div class="tagline">MEMORY · FOCUS · CHALLENGE</div>
+  </div>
+  <div class="section-label">CHOOSE A GAME</div>
+  <div class="games-grid">
+    <div class="game-card c1" onclick="launchGame('flip')">
+      <span class="gbadge badge-hot">HOT</span>
+      <span class="icon">🃏</span>
+      <div class="gname">Card Match</div>
+      <div class="gdesc">Flip and match pairs from memory</div>
+    </div>
+    <div class="game-card c2" onclick="launchGame('simon')">
+      <span class="icon">🎮</span>
+      <div class="gname">Simon Says</div>
+      <div class="gdesc">Repeat color sequences</div>
+    </div>
+    <div class="game-card c3" onclick="launchGame('numseq')">
+      <span class="gbadge badge-new">NEW</span>
+      <span class="icon">🔢</span>
+      <div class="gname">Number Recall</div>
+      <div class="gdesc">Remember growing digit sequences</div>
+    </div>
+    <div class="game-card c4" onclick="launchGame('wordmem')">
+      <span class="icon">📝</span>
+      <div class="gname">Word Memory</div>
+      <div class="gdesc">Spot the word that was in the list</div>
+    </div>
+    <div class="game-card c5" onclick="launchGame('pattern')">
+      <span class="icon">🔵</span>
+      <div class="gname">Grid Pattern</div>
+      <div class="gdesc">Memorize lit cell patterns</div>
+    </div>
+    <div class="game-card c6" onclick="launchGame('speedtap')">
+      <span class="icon">⚡</span>
+      <div class="gname">Speed Tap</div>
+      <div class="gdesc">Tap targets as fast as you can</div>
+    </div>
+    <div class="game-card c1" onclick="launchGame('pathtrace')">
+      <span class="gbadge badge-new">NEW</span>
+      <span class="icon">🗺️</span>
+      <div class="gname">Path Trace</div>
+      <div class="gdesc">Memorize & replay cell sequences in order</div>
+    </div>
+    <div class="game-card c3" onclick="launchGame('dualtask')">
+      <span class="gbadge badge-new">NEW</span>
+      <span class="icon">🧮</span>
+      <div class="gname">Dual Task</div>
+      <div class="gdesc">Remember numbers while solving maths</div>
+    </div>
+  </div>
+</div>
+
+<!-- GAME SCREEN -->
+<div id="game-screen" class="screen">
+  <div class="game-nav">
+    <button class="btn-back" onclick="goHome()">←</button>
+    <div class="nav-title" id="game-title">Game</div>
+    <div class="nav-score" id="nav-score">0</div>
+  </div>
+  <div class="game-container">
+    <div class="game-info-bar" id="game-info-bar"></div>
+    <div id="game-area"></div>
+  </div>
+</div>
+
+<!-- RESULT OVERLAY -->
+<div class="result-overlay" id="result-overlay">
+  <div class="result-icon" id="result-icon">🎉</div>
+  <div class="result-title" id="result-title">Well Done!</div>
+  <div class="result-score" id="result-score"></div>
+  <div class="result-btns">
+    <button class="btn-secondary" onclick="goHome()">🏠 Home</button>
+    <button class="btn-action" onclick="restartGame()">↺ Play Again</button>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════
+// GLOBALS & STATE
+// ═══════════════════════════════════════════════════
+let currentGame = null;
+let score = 0;
+let gamesPlayed = 0;
+let bestScore = 0;
+let winStreak = 0;
+let gameState = {};
+
+// Persist stats in memory (no localStorage per artifact rules → just session)
+function updateNavScore(s) {
+  score = s;
+  document.getElementById('nav-score').textContent = s;
+}
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function goHome() {
+  hideResult();
+  cleanupGame();
+  showScreen('home');
+  refreshHomeStats();
+}
+
+function refreshHomeStats() {
+  const sg = document.getElementById('stat-games');
+  const sb = document.getElementById('stat-best');
+  const ss = document.getElementById('stat-streak');
+  if (sg) sg.textContent = gamesPlayed;
+  if (sb) sb.textContent = bestScore || '—';
+  if (ss) ss.textContent = winStreak;
+}
+
+function showResult(win, title, details) {
+  if (score > bestScore) bestScore = score;
+  if (win) winStreak++;
+  else winStreak = Math.max(winStreak, 0); // don't double-decrement
+  refreshHomeStats();
+  const overlay = document.getElementById('result-overlay');
+  document.getElementById('result-icon').textContent = win ? '🎉' : '💀';
+  document.getElementById('result-title').textContent = title;
+  document.getElementById('result-score').innerHTML = details;
+  overlay.classList.add('show');
+}
+
+function hideResult() {
+  document.getElementById('result-overlay').classList.remove('show');
+}
+
+function restartGame() {
+  hideResult();
+  if (currentGame) launchGame(currentGame);
+}
+
+function cleanupGame() {
+  if (gameState.timerInterval) clearInterval(gameState.timerInterval);
+  if (gameState.timeoutIds) gameState.timeoutIds.forEach(t => clearTimeout(t));
+  gameState = {};
+}
+
+const GAME_META = {
+  flip: { title: 'Card Match' },
+  simon: { title: 'Simon Says' },
+  numseq: { title: 'Number Recall' },
+  wordmem: { title: 'Word Memory' },
+  pattern: { title: 'Grid Pattern' },
+  speedtap: { title: 'Speed Tap' },
+  pathtrace: { title: 'Path Trace' },
+  dualtask: { title: 'Dual Task' }
+};
+
+function launchGame(id) {
+  cleanupGame();
+  hideResult();
+  const isRestart = currentGame === id;
+  currentGame = id;
+  score = 0;
+  updateNavScore(0);
+  document.getElementById('game-title').textContent = GAME_META[id].title;
+  showScreen('game-screen');
+  const infoBar = document.getElementById('game-info-bar');
+  const area = document.getElementById('game-area');
+  infoBar.innerHTML = '';
+  area.innerHTML = '';
+  if (!isRestart) gamesPlayed++;
+  refreshHomeStats();
+
+  const launchers = {
+    flip: launchFlip,
+    simon: launchSimon,
+    numseq: launchNumSeq,
+    wordmem: launchWordMem,
+    pattern: launchPattern,
+    speedtap: launchSpeedTap,
+    pathtrace: launchPathTrace,
+    dualtask: launchDualTask
+  };
+  launchers[id](infoBar, area);
+}
+
+function recordScore(s, win) {
+  if (s > bestScore) bestScore = s;
+  if (win) winStreak++;
+  else winStreak = 0;
+  refreshHomeStats();
+}
+
+// ═══════════════════════════════════════════════════
+// GAME 1: CARD MATCH (Memory Flip)
+// ═══════════════════════════════════════════════════
+function launchFlip(infoBar, area) {
+  const EMOJIS = ['🐶','🐱','🦊','🐸','🦋','🌈','🍕','🎸','🚀','🦄','🔥','💎','🌸','🦁','🐳','🦅','🍎','🎯','🏆','⭐','🧩','🎪','🦜','🍦','🎲'];
+  // Level 1: 5 pairs (10 cards = 2 rows of 5)
+  // Level 2: 10 pairs (20 cards = 4 rows of 5)
+  // Level 3: 15 pairs (30 cards = 6 rows of 5), etc.
+  let pairs = 5;
+  let level = 1;
+  let cards = [];
+  let flipped = [];
+  let matched = 0;
+  let moves = 0;
+  let locked = false;
+  gameState.timeoutIds = [];
+
+  function init() {
+    const selected = EMOJIS.slice(0, pairs);
+    cards = shuffle([...selected, ...selected]);
+    flipped = new Array(cards.length).fill(false);
+    matched = 0; moves = 0; locked = false;
+    gameState.matchedSet = new Set();
+    renderFlip();
+  }
+
+  function renderFlip() {
+    const COLS = 5; // always 5 per row
+    area.innerHTML = `
+      <div style="text-align:center;margin-bottom:14px;">
+        <div style="font-size:11px;color:var(--muted);letter-spacing:0.1em;margin-bottom:6px;">LEVEL ${level} — MATCH ALL ${pairs} PAIRS</div>
+        <div class="progress-bar"><div class="progress-fill" id="flip-progress" style="width:0%"></div></div>
+      </div>
+      <div class="flip-grid" id="flip-grid" style="grid-template-columns:repeat(${COLS},1fr);max-width:360px"></div>
+    `;
+    infoBar.innerHTML = `
+      <div class="info-chip">Moves <span id="moves-count">0</span></div>
+      <div class="info-chip">Matched <span id="match-count">0/${pairs}</span></div>
+      <button class="btn-action" onclick="">↺</button>
+    `;
+    infoBar.querySelector('.btn-action').onclick = () => { cleanupGame(); launchFlip(infoBar, area); };
+    renderCards();
+  }
+
+  function renderCards() {
+    const grid = document.getElementById('flip-grid');
+    grid.innerHTML = '';
+    cards.forEach((emoji, i) => {
+      const el = document.createElement('div');
+      el.className = 'flip-card' + (flipped[i] ? ' flipped' : '') + (isMatched(i) ? ' matched' : '');
+      el.innerHTML = `
+        <div class="card-face card-front"><span class="q-mark">?</span></div>
+        <div class="card-face card-back">${emoji}</div>
+      `;
+      if (!isMatched(i)) el.onclick = () => flipCard(i);
+      grid.appendChild(el);
+    });
+  }
+
+  function isMatched(i) {
+    return gameState.matchedSet && gameState.matchedSet.has(i);
+  }
+
+  function flipCard(i) {
+    if (locked || flipped[i] || isMatched(i)) return;
+    flipped[i] = true;
+    renderCards();
+    flipped.filter((v,idx) => v && !isMatched(idx)).length;
+    const openIndices = cards.map((_, idx) => (flipped[idx] && !isMatched(idx)) ? idx : -1).filter(x => x >= 0);
+
+    if (openIndices.length === 2) {
+      locked = true;
+      moves++;
+      document.getElementById('moves-count').textContent = moves;
+      const [a, b] = openIndices;
+      const t = setTimeout(() => {
+        if (cards[a] === cards[b]) {
+          gameState.matchedSet.add(a);
+          gameState.matchedSet.add(b);
+          matched++;
+          const s = Math.max(0, 100 - moves * 2 + matched * 10);
+          updateNavScore(score + s);
+          score += s;
+          document.getElementById('match-count').textContent = `${matched}/${pairs}`;
+          document.getElementById('flip-progress').style.width = `${(matched/pairs)*100}%`;
+          if (matched === pairs) {
+            score += level * 50; // bonus for completing level
+            updateNavScore(score);
+            const tid = setTimeout(() => {
+              level++;
+              pairs = Math.min(pairs + 5, 25); // +5 per level (always full rows of 5), max 25
+              area.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:200px;flex-direction:column;gap:12px;">
+                <div style="font-size:48px">🎉</div>
+                <div style="font-family:'Syne',sans-serif;font-weight:800;font-size:20px;color:var(--accent3)">Level Complete!</div>
+                <div style="font-size:13px;color:var(--muted)">Level ${level}: ${pairs} pairs incoming...</div>
+              </div>`;
+              const tid2 = setTimeout(() => init(), 1200);
+              gameState.timeoutIds.push(tid2);
+            }, 400);
+            gameState.timeoutIds.push(tid);
+          }
+        } else {
+          flipped[a] = false;
+          flipped[b] = false;
+        }
+        locked = false;
+        renderCards();
+      }, 700);
+      gameState.timeoutIds.push(t);
+    }
+  }
+
+  init();
+}
+
+// ═══════════════════════════════════════════════════
+// GAME 2: SIMON SAYS (redesign)
+// ═══════════════════════════════════════════════════
+function launchSimon(infoBar, area) {
+  let sequence = [];
+  let playerIndex = 0;
+  let level = 0;
+  let accepting = false;
+  const PAD_ICONS = ['🔴','🟢','🟡','🔵'];
+  gameState.timeoutIds = [];
+
+  area.innerHTML = `
+    <div class="simon-wrap">
+      <div class="simon-status" id="simon-status">Press START to begin</div>
+      <div class="simon-cross" id="simon-cross">
+        <button class="simon-pad sp-0 sp-tl dim" id="sp-0" onclick="simonTap(0)"></button>
+        <button class="simon-pad sp-1 sp-tr dim" id="sp-1" onclick="simonTap(1)"></button>
+        <button class="simon-pad sp-2 sp-bl dim" id="sp-2" onclick="simonTap(2)"></button>
+        <button class="simon-pad sp-3 sp-br dim" id="sp-3" onclick="simonTap(3)"></button>
+        <div class="simon-hub">
+          <div class="simon-hub-inner">
+            <span id="simon-hub-lv" style="font-family:'Syne',sans-serif;font-weight:800;font-size:14px;color:var(--muted)">—</span>
+          </div>
+        </div>
+      </div>
+      <div class="simon-level">Level <span id="simon-level-num">0</span></div>
+      <button class="btn-action" id="simon-start-btn" onclick="simonStart()" style="margin-top:4px;">▶ START</button>
+    </div>
+  `;
+  infoBar.innerHTML = '';
+
+  // Set a pad to lit or dim — no CSS transitions, pure state swap
+  function setPad(idx, state) {
+    const pad = document.getElementById('sp-' + idx);
+    if (!pad) return;
+    pad.className = `simon-pad sp-${idx} sp-${['tl','tr','bl','br'][idx]} ${state}`;
+  }
+
+  function allDim() {
+    [0,1,2,3].forEach(i => setPad(i, 'dim'));
+  }
+
+  function flashPad(idx, durationMs) {
+    setPad(idx, 'glow');
+    const t = setTimeout(() => setPad(idx, 'dim'), durationMs);
+    gameState.timeoutIds.push(t);
+  }
+
+  window.simonTap = function(idx) {
+    if (!accepting) return;
+    // Immediate visual — flash for 220ms
+    flashPad(idx, 220);
+    if (idx === sequence[playerIndex]) {
+      playerIndex++;
+      if (playerIndex === sequence.length) {
+        accepting = false;
+        score += level * 10;
+        updateNavScore(score);
+        setStatus('✓ Correct!');
+        const t = setTimeout(() => nextLevel(), 900);
+        gameState.timeoutIds.push(t);
+      }
+    } else {
+      accepting = false;
+      // flash wrong pad red-ish then game over
+      const t = setTimeout(() => {
+        recordScore(score, false);
+        showResult(false, 'Wrong!', `<strong>Reached Level:</strong> ${level}<br><strong>Score:</strong> ${score}`);
+      }, 500);
+      gameState.timeoutIds.push(t);
+      setStatus('✗ Wrong!');
+    }
+  };
+
+  window.simonStart = function() {
+    sequence = [];
+    level = 0;
+    score = 0;
+    updateNavScore(0);
+    const btn = document.getElementById('simon-start-btn');
+    if (btn) btn.style.display = 'none';
+    nextLevel();
+  };
+
+  function setStatus(msg) {
+    const el = document.getElementById('simon-status');
+    if (el) el.textContent = msg;
+  }
+
+  function setHubLevel(n) {
+    const el = document.getElementById('simon-hub-lv');
+    if (el) el.textContent = n || '—';
+    const lv = document.getElementById('simon-level-num');
+    if (lv) lv.textContent = n;
+  }
+
+  function nextLevel() {
+    level++;
+    playerIndex = 0;
+    accepting = false;
+    setHubLevel(level);
+    sequence.push(Math.floor(Math.random() * 4));
+    setStatus('Watch carefully…');
+    allDim();
+    // Small pause before showing sequence
+    const t = setTimeout(() => playSequence(), 600);
+    gameState.timeoutIds.push(t);
+  }
+
+  function playSequence() {
+    // Flash duration and gap between flashes both shrink with level
+    const flashMs  = Math.max(280, 520 - level * 15); // how long lit
+    const gapMs    = Math.max(180, 400 - level * 10); // dark gap between flashes
+    const stepMs   = flashMs + gapMs;
+    let i = 0;
+
+    function step() {
+      if (i >= sequence.length) {
+        // All done — let player go
+        const t = setTimeout(() => {
+          accepting = true;
+          setStatus('Your turn!');
+        }, gapMs);
+        gameState.timeoutIds.push(t);
+        return;
+      }
+      flashPad(sequence[i], flashMs);
+      i++;
+      const t = setTimeout(step, stepMs);
+      gameState.timeoutIds.push(t);
+    }
+    step();
+  }
+}
+
+// ═══════════════════════════════════════════════════
+// GAME 3: NUMBER RECALL
+// ═══════════════════════════════════════════════════
+function launchNumSeq(infoBar, area) {
+  let level = 1;
+  let sequence = [];
+  let userInput = '';
+  let phase = 'show'; // show | input
+  gameState.timeoutIds = [];
+
+  area.innerHTML = `
+    <div class="numseq-wrap">
+      <div class="numseq-display">
+        <div class="seq-label">REMEMBER THIS SEQUENCE</div>
+        <div class="seq-nums" id="seq-display">—</div>
+      </div>
+      <div class="user-answer" id="user-answer">_</div>
+      <div class="numpad">
+        ${[1,2,3,4,5,6,7,8,9,'⌫',0,'✓'].map(n =>
+          n === '⌫' ? `<button class="numpad-btn del" onclick="numTap('del')">${n}</button>`
+          : n === '✓' ? `<button class="numpad-btn submit" onclick="numTap('submit')">${n}</button>`
+          : `<button class="numpad-btn" onclick="numTap(${n})">${n}</button>`
+        ).join('')}
+      </div>
+    </div>
+  `;
+  infoBar.innerHTML = `
+    <div class="info-chip">Level <span id="num-level">1</span></div>
+    <div class="info-chip">Digits <span id="num-digits">3</span></div>
+    <div class="info-chip">Score <span id="num-score">0</span></div>
+  `;
+
+  window.numTap = function(val) {
+    if (phase !== 'input') return;
+    if (val === 'del') {
+      userInput = userInput.slice(0, -1);
+    } else if (val === 'submit') {
+      checkAnswer();
+      return;
+    } else {
+      if (userInput.length >= sequence.length) return;
+      userInput += val;
+    }
+    const ua = document.getElementById('user-answer');
+    if (ua) ua.textContent = userInput || '_';
+  };
+
+  function startLevel() {
+    userInput = '';
+    phase = 'show';
+    const digits = 2 + level;
+    sequence = Array.from({length: digits}, () => Math.floor(Math.random() * 10));
+    const el = document.getElementById('seq-display');
+    const ua = document.getElementById('user-answer');
+    const nl = document.getElementById('num-level');
+    const nd = document.getElementById('num-digits');
+    if (!el) return;
+    el.textContent = sequence.join(' ');
+    if (ua) ua.textContent = '_';
+    if (nl) nl.textContent = level;
+    if (nd) nd.textContent = digits;
+    const t = setTimeout(() => {
+      if (document.getElementById('seq-display')) {
+        document.getElementById('seq-display').textContent = '?';
+        phase = 'input';
+      }
+    }, 1200 + digits * 400);
+    gameState.timeoutIds.push(t);
+  }
+
+  function checkAnswer() {
+    const correct = sequence.join('');
+    if (userInput === correct) {
+      score += level * 15;
+      updateNavScore(score);
+      const ns = document.getElementById('num-score');
+      if (ns) ns.textContent = score;
+      level++;
+      startLevel();
+    } else {
+      phase = 'done';
+      recordScore(score, false);
+      showResult(false, 'Incorrect!', `<strong>Your Answer:</strong> ${userInput || '(blank)'}<br><strong>Correct:</strong> ${correct}<br><strong>Reached Level:</strong> ${level}<br><strong>Score:</strong> ${score}`);
+    }
+  }
+
+  startLevel();
+}
+
+// ═══════════════════════════════════════════════════
+// GAME 4: WORD MEMORY
+// ═══════════════════════════════════════════════════
+function launchWordMem(infoBar, area) {
+  const WORD_POOL = ['apple','mango','river','cloud','flame','chess','piano','zebra',
+    'coral','frost','grape','lemon','ocean','prism','quill','raven','storm','tiger',
+    'viola','whale','xenon','yacht','zephyr','amber','blaze','cedar','dune','ember',
+    'fable','ghost','haven','ivory','jewel','knoll','lotus','maple','nexus','opal',
+    'pearl','quartz','robin','slate','tulip','umbra','venom','waltz','xerus'];
+
+  let round = 1;
+  let studyWords = [];
+  let phase = 'study';
+  gameState.timeoutIds = [];
+
+  infoBar.innerHTML = `
+    <div class="info-chip">Round <span id="wr">${round}</span></div>
+    <div class="info-chip">Score <span id="ws">${score}</span></div>
+  `;
+
+  function startRound() {
+    phase = 'study';
+    const count = 3 + round;
+    studyWords = shuffle([...WORD_POOL]).slice(0, count);
+    updateNavScore(score);
+
+    area.innerHTML = `
+      <div class="word-wrap">
+        <div class="word-display">
+          <div class="wlabel">MEMORIZE THESE WORDS</div>
+          <div class="word-list" id="word-list"></div>
+        </div>
+        <div style="font-size:12px;color:var(--muted);text-align:center" id="word-countdown"></div>
+      </div>
+    `;
+
+    const list = document.getElementById('word-list');
+    studyWords.forEach((w, i) => {
+      const t = setTimeout(() => {
+        if (!document.getElementById('word-list')) return;
+        const p = document.createElement('div');
+        p.className = 'word-pill';
+        p.textContent = w;
+        list.appendChild(p);
+      }, i * 200);
+      gameState.timeoutIds.push(t);
+    });
+
+    let countdown = 3 + round;
+    const cdEl = () => document.getElementById('word-countdown');
+    const iv = setInterval(() => {
+      countdown--;
+      if (cdEl()) cdEl().textContent = countdown > 0 ? `${countdown}s to memorize...` : '';
+      if (countdown <= 0) {
+        clearInterval(iv);
+        showQuestion();
+      }
+    }, 1000);
+    gameState.timerInterval = iv;
+  }
+
+  function showQuestion() {
+    if (!document.getElementById('word-list')) return;
+    phase = 'answer';
+    // pick one correct word from list, generate 3 distractors
+    const correct = studyWords[Math.floor(Math.random() * studyWords.length)];
+    const distractors = shuffle(WORD_POOL.filter(w => !studyWords.includes(w))).slice(0, 3);
+    const options = shuffle([correct, ...distractors]);
+
+    area.innerHTML = `
+      <div class="word-wrap">
+        <div class="word-display">
+          <div class="wlabel">WAS THIS WORD IN THE LIST?</div>
+          <div class="word-list" id="word-question" style="justify-content:center"></div>
+        </div>
+        <div style="font-size:12px;color:var(--muted);text-align:center;margin-bottom:4px">TAP THE WORD FROM THE LIST</div>
+        <div class="word-options" id="word-opts"></div>
+      </div>
+    `;
+
+    const opts = document.getElementById('word-opts');
+    options.forEach(w => {
+      const btn = document.createElement('button');
+      btn.className = 'word-opt';
+      btn.textContent = w;
+      btn.onclick = () => {
+        if (phase !== 'answer') return;
+        phase = 'wait';
+        if (w === correct) {
+          btn.classList.add('correct');
+          score += round * 20;
+          updateNavScore(score);
+          document.getElementById('ws').textContent = score;
+          round++;
+          document.getElementById('wr').textContent = round;
+          const t = setTimeout(startRound, 1000);
+          gameState.timeoutIds.push(t);
+        } else {
+          btn.classList.add('wrong');
+          // show correct
+          opts.querySelectorAll('.word-opt').forEach(b => {
+            if (b.textContent === correct) b.classList.add('correct');
+          });
+          recordScore(score, false);
+          const t = setTimeout(() => showResult(false, 'Wrong Word!', `<strong>You chose:</strong> ${w}<br><strong>Correct answer:</strong> ${correct}<br><strong>Round:</strong> ${round}<br><strong>Score:</strong> ${score}`), 1000);
+          gameState.timeoutIds.push(t);
+        }
+      };
+      opts.appendChild(btn);
+    });
+  }
+
+  startRound();
+}
+
+// ═══════════════════════════════════════════════════
+// GAME 5: GRID PATTERN
+// ═══════════════════════════════════════════════════
+function launchPattern(infoBar, area) {
+  let level = 1;
+  let completions = 0; // total completions across all levels
+  let pattern = [];
+  let userPattern = [];
+  let phase = 'show';
+  let gridCols = 3;
+  let gridRows = 3;
+  gameState.timeoutIds = [];
+
+  // Grid growth schedule (by completions count):
+  // 0–4   → 3×3  (5 rounds at base)
+  // 5–9   → 4×3  (add a column after 5 wins)
+  // 10–14 → 4×4  (square up after 5 more wins)
+  // 15–19 → 5×4  (add column)
+  // 20–24 → 5×5  (square up)
+  // 25–29 → 6×5  (add column)
+  // 30+   → 6×6  (square up, max size)
+  function updateGridSize() {
+    if (completions < 5)       { gridCols = 3; gridRows = 3; }
+    else if (completions < 10) { gridCols = 4; gridRows = 3; }
+    else if (completions < 15) { gridCols = 4; gridRows = 4; }
+    else if (completions < 20) { gridCols = 5; gridRows = 4; }
+    else if (completions < 25) { gridCols = 5; gridRows = 5; }
+    else if (completions < 30) { gridCols = 6; gridRows = 5; }
+    else                       { gridCols = 6; gridRows = 6; }
+  }
+
+  infoBar.innerHTML = `
+    <div class="info-chip">Level <span id="pat-lv">1</span></div>
+    <div class="info-chip">Grid <span id="pat-grid-size">3×3</span></div>
+    <div class="info-chip">Cells <span id="pat-cells">3</span></div>
+  `;
+
+  function startLevel() {
+    phase = 'show';
+    userPattern = [];
+    updateGridSize();
+    const totalCells = gridCols * gridRows;
+    const count = Math.min(2 + level, Math.floor(totalCells * 0.6));
+    const allCells = Array.from({length: totalCells}, (_, i) => i);
+    pattern = shuffle(allCells).slice(0, count);
+    const lv = document.getElementById('pat-lv');
+    const pc = document.getElementById('pat-cells');
+    const gs = document.getElementById('pat-grid-size');
+    if (lv) lv.textContent = level;
+    if (pc) pc.textContent = count;
+    if (gs) gs.textContent = `${gridCols}×${gridRows}`;
+
+    const cellSize = Math.min(70, Math.floor((Math.min(window.innerWidth - 40, 380)) / gridCols) - 8);
+    const gridEl = document.getElementById('pat-grid');
+    if (gridEl) gridEl.style.gridTemplateColumns = `repeat(${gridCols},${cellSize}px)`;
+
+    renderGrid(false);
+    document.getElementById('pat-status').textContent = 'Memorize the pattern!';
+
+    const t1 = setTimeout(() => {
+      if (!document.getElementById('pat-grid')) return;
+      renderGrid(true);
+      const t2 = setTimeout(() => {
+        if (!document.getElementById('pat-grid')) return;
+        renderGrid(false);
+        phase = 'input';
+        document.getElementById('pat-status').textContent = 'Tap the cells you saw!';
+      }, 1000 + count * 200);
+      gameState.timeoutIds.push(t2);
+    }, 400);
+    gameState.timeoutIds.push(t1);
+  }
+
+  function renderGrid(showPattern) {
+    if (!document.getElementById('pattern-wrap-inner')) return;
+    const el = document.getElementById('pat-grid');
+    if (!el) return;
+    const cellSize = Math.min(70, Math.floor((Math.min(window.innerWidth - 40, 380)) / gridCols) - 8);
+    el.style.gridTemplateColumns = `repeat(${gridCols},${cellSize}px)`;
+    el.innerHTML = '';
+    const totalCells = gridCols * gridRows;
+    for (let i = 0; i < totalCells; i++) {
+      const cell = document.createElement('div');
+      cell.className = 'pattern-cell';
+      cell.style.width = cellSize + 'px';
+      cell.style.height = cellSize + 'px';
+      if (showPattern && pattern.includes(i)) cell.classList.add('lit');
+      if (!showPattern && userPattern.includes(i)) cell.classList.add('user-lit');
+      cell.onclick = () => tapCell(i);
+      el.appendChild(cell);
+    }
+  }
+
+  function tapCell(i) {
+    if (phase !== 'input') return;
+    if (userPattern.includes(i)) return;
+    userPattern.push(i);
+    renderGrid(false);
+    if (userPattern.length === pattern.length) {
+      checkPattern();
+    }
+  }
+
+  function checkPattern() {
+    phase = 'check';
+    const correct = pattern.every(c => userPattern.includes(c)) && userPattern.every(c => pattern.includes(c));
+    if (correct) {
+      score += level * 25;
+      updateNavScore(score);
+      completions++;
+      document.getElementById('pat-status').textContent = '✓ Perfect!';
+      level++;
+      const t = setTimeout(startLevel, 800);
+      gameState.timeoutIds.push(t);
+    } else {
+      document.getElementById('pat-status').textContent = '✗ Wrong pattern!';
+      const t = setTimeout(() => {
+        if (!document.getElementById('pat-grid')) return;
+        renderGrid(true);
+        const t2 = setTimeout(() => {
+          recordScore(score, false);
+          showResult(false, 'Wrong Pattern!', `<strong>Reached Level:</strong> ${level}<br><strong>Grid:</strong> ${gridCols}×${gridRows}<br><strong>Score:</strong> ${score}`);
+        }, 1000);
+        gameState.timeoutIds.push(t2);
+      }, 400);
+      gameState.timeoutIds.push(t);
+    }
+  }
+
+  area.innerHTML = `
+    <div class="pattern-wrap" id="pattern-wrap-inner">
+      <div class="pattern-status" id="pat-status">Get ready...</div>
+      <div class="pattern-grid-wrap">
+        <div class="pattern-grid" id="pat-grid"></div>
+      </div>
+      <div style="font-size:11px;color:var(--muted);text-align:center">
+        Tap the cells that were lit
+      </div>
+    </div>
+  `;
+
+  startLevel();
+}
+
+// ═══════════════════════════════════════════════════
+// GAME 6: SPEED TAP
+// ═══════════════════════════════════════════════════
+function launchSpeedTap(infoBar, area) {
+  const DURATION = 30;
+  let running = false;
+  let taps = 0;
+  let timeLeft = DURATION;
+  gameState.timeoutIds = [];
+
+  area.innerHTML = `
+    <div class="speed-wrap">
+      <div class="speed-stats">
+        <div class="speed-stat"><div class="v" id="sp-taps">0</div><div class="l">TAPS</div></div>
+        <div class="speed-stat"><div class="v" id="sp-time">${DURATION}</div><div class="l">SECONDS</div></div>
+      </div>
+      <div class="speed-timer"><div class="speed-timer-bar" id="sp-bar" style="width:100%"></div></div>
+      <div class="speed-target-area" id="sp-area">
+        <button class="speed-start-btn" id="sp-start" onclick="speedStart()" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%)">TAP TO START</button>
+      </div>
+    </div>
+  `;
+  infoBar.innerHTML = '';
+
+  window.speedStart = function() {
+    if (running) return;
+    running = true; taps = 0; timeLeft = DURATION;
+    const startBtn = document.getElementById('sp-start');
+    if (startBtn) startBtn.remove();
+    spawnTarget();
+    gameState.timerInterval = setInterval(() => {
+      timeLeft--;
+      const tv = document.getElementById('sp-time');
+      const bar = document.getElementById('sp-bar');
+      if (tv) tv.textContent = timeLeft;
+      if (bar) bar.style.width = `${(timeLeft/DURATION)*100}%`;
+      if (timeLeft <= 0) {
+        clearInterval(gameState.timerInterval);
+        running = false;
+        const finalScore = taps * 3;
+        score = finalScore;
+        updateNavScore(finalScore);
+        recordScore(finalScore, true);
+        showResult(true, 'Time\'s Up!', `<strong>Targets Tapped:</strong> ${taps}<br><strong>Score:</strong> ${finalScore}<br>${taps > 20 ? '🔥 Amazing speed!' : taps > 10 ? '👍 Good reflexes!' : '💪 Keep practicing!'}`);
+      }
+    }, 1000);
+  };
+
+  function spawnTarget() {
+    const spArea = document.getElementById('sp-area');
+    if (!spArea || !running) return;
+    const old = document.getElementById('sp-target');
+    if (old) old.remove();
+
+    const target = document.createElement('button');
+    target.id = 'sp-target';
+    target.className = 'speed-target';
+    target.textContent = '⚡';
+    const maxX = spArea.offsetWidth - 64;
+    const maxY = spArea.offsetHeight - 64;
+    const x = 32 + Math.random() * Math.max(1, maxX);
+    const y = 32 + Math.random() * Math.max(1, maxY);
+    target.style.left = x + 'px';
+    target.style.top = y + 'px';
+    target.onclick = (e) => {
+      e.stopPropagation();
+      if (!running) return;
+      taps++;
+      const tv = document.getElementById('sp-taps');
+      if (tv) tv.textContent = taps;
+      score = taps * 3;
+      updateNavScore(score);
+      spawnTarget();
+    };
+    spArea.appendChild(target);
+  }
+}
+
+// ═══════════════════════════════════════════════════
+// GAME 7: PATH TRACE
+// Watch a sequence of cells light up one-by-one, then tap them in the same order.
+// ═══════════════════════════════════════════════════
+function launchPathTrace(infoBar, area) {
+  let level = 1;
+  let completionsAtSize = 0; // completions at the current grid size
+  let sequence = [];
+  let userSeq = [];
+  let phase = 'show';
+  let gridSize = 3;
+  gameState.timeoutIds = [];
+
+  infoBar.innerHTML = `
+    <div class="info-chip">Level <span id="pt-lv">1</span></div>
+    <div class="info-chip">Grid <span id="pt-gs">3×3</span></div>
+    <div class="info-chip">Steps <span id="pt-steps">3</span></div>
+  `;
+
+  // Grid grows after 5 completions at current size: 3→4→5
+  function checkGrowGrid() {
+    if (completionsAtSize >= 5) {
+      if (gridSize < 5) {
+        gridSize++;
+        completionsAtSize = 0;
+      }
+    }
+  }
+
+  function startLevel() {
+    phase = 'show';
+    userSeq = [];
+    const totalCells = gridSize * gridSize;
+    // Steps grow with level but capped at 75% of total cells
+    const steps = Math.min(2 + level, Math.floor(totalCells * 0.75));
+    const pool = shuffle(Array.from({length: totalCells}, (_, i) => i));
+    sequence = pool.slice(0, steps);
+
+    const lv = document.getElementById('pt-lv');
+    const ps = document.getElementById('pt-steps');
+    const gs = document.getElementById('pt-gs');
+    if (lv) lv.textContent = level;
+    if (ps) ps.textContent = steps;
+    if (gs) gs.textContent = `${gridSize}×${gridSize}`;
+
+    renderPathGrid();
+    document.getElementById('pt-status').textContent = 'Watch the path!';
+    updateDots();
+
+    let i = 0;
+    function flash() {
+      if (!document.getElementById('pt-grid')) return;
+      if (i > 0) setCellState(sequence[i-1], 'idle');
+      if (i >= sequence.length) {
+        const t = setTimeout(() => {
+          phase = 'input';
+          document.getElementById('pt-status').textContent = 'Now trace the path in order!';
+        }, 300);
+        gameState.timeoutIds.push(t);
+        return;
+      }
+      setCellState(sequence[i], 'active');
+      i++;
+      const t = setTimeout(flash, 600);
+      gameState.timeoutIds.push(t);
+    }
+    const t0 = setTimeout(flash, 600);
+    gameState.timeoutIds.push(t0);
+  }
+
+  function renderPathGrid() {
+    const el = document.getElementById('pt-grid');
+    if (!el) return;
+    const cellSize = Math.min(72, Math.floor((Math.min(window.innerWidth - 40, 340)) / gridSize) - 10);
+    el.style.gridTemplateColumns = `repeat(${gridSize}, ${cellSize}px)`;
+    el.innerHTML = '';
+    for (let i = 0; i < gridSize * gridSize; i++) {
+      const cell = document.createElement('div');
+      cell.className = 'path-cell';
+      cell.style.width = cellSize + 'px';
+      cell.style.height = cellSize + 'px';
+      cell.id = `ptc-${i}`;
+      cell.onclick = () => tapPathCell(i);
+      el.appendChild(cell);
+    }
+  }
+
+  function setCellState(idx, state) {
+    const cell = document.getElementById(`ptc-${idx}`);
+    if (!cell) return;
+    cell.className = 'path-cell' + (state === 'active' ? ' active' : state === 'user' ? ' user-active' : state === 'wrong' ? ' wrong-active' : '');
+  }
+
+  function updateDots() {
+    const el = document.getElementById('pt-dots');
+    if (!el) return;
+    el.innerHTML = sequence.map((_, i) => {
+      const cls = i < userSeq.length ? 'done' : i === userSeq.length ? 'current' : '';
+      return `<div class="path-dot ${cls}"></div>`;
+    }).join('');
+  }
+
+  function tapPathCell(i) {
+    if (phase !== 'input') return;
+    const expected = sequence[userSeq.length];
+    if (i === expected) {
+      userSeq.push(i);
+      setCellState(i, 'user');
+      updateDots();
+      if (userSeq.length === sequence.length) {
+        phase = 'check';
+        score += level * 20;
+        updateNavScore(score);
+        completionsAtSize++;
+        checkGrowGrid();
+        document.getElementById('pt-status').textContent = '✓ Path complete!';
+        level++;
+        const t = setTimeout(startLevel, 900);
+        gameState.timeoutIds.push(t);
+      }
+    } else {
+      phase = 'check';
+      setCellState(i, 'wrong');
+      document.getElementById('pt-status').textContent = '✗ Wrong cell!';
+      const t = setTimeout(() => {
+        if (!document.getElementById('pt-grid')) return;
+        renderPathGrid();
+        sequence.forEach((ci, idx) => {
+          const t2 = setTimeout(() => setCellState(ci, 'active'), idx * 300);
+          gameState.timeoutIds.push(t2);
+        });
+        const t3 = setTimeout(() => {
+          recordScore(score, false);
+          showResult(false, 'Wrong Path!', `<strong>Reached Level:</strong> ${level}<br><strong>Grid:</strong> ${gridSize}×${gridSize}<br><strong>Steps in sequence:</strong> ${sequence.length}<br><strong>Score:</strong> ${score}`);
+        }, sequence.length * 300 + 600);
+        gameState.timeoutIds.push(t3);
+      }, 400);
+      gameState.timeoutIds.push(t);
+    }
+  }
+
+  area.innerHTML = `
+    <div class="path-wrap">
+      <div class="path-status" id="pt-status">Get ready...</div>
+      <div class="path-seq-display" id="pt-dots"></div>
+      <div class="path-grid" id="pt-grid"></div>
+      <div style="font-size:11px;color:var(--muted);text-align:center">Tap cells in the order they lit up</div>
+    </div>
+  `;
+
+  startLevel();
+}
+
+// ═══════════════════════════════════════════════════
+// GAME 8: DUAL TASK
+// See a set of numbers, solve math problems, then recall the original numbers.
+// ═══════════════════════════════════════════════════
+function launchDualTask(infoBar, area) {
+  let level = 1;
+  let round = 0;
+  let memNumbers = [];
+  let mathCorrect = 0;
+  gameState.timeoutIds = [];
+
+  infoBar.innerHTML = `
+    <div class="info-chip">Level <span id="dt-lv">1</span></div>
+    <div class="info-chip">Round <span id="dt-rd">1</span></div>
+    <div class="info-chip">Score <span id="dt-sc">0</span></div>
+  `;
+
+  function getConfig() {
+    // digits to remember, math questions to solve before recall
+    const digits = 2 + Math.min(Math.floor((level - 1) / 2), 4); // 2..6
+    const mathQ  = 1 + Math.min(Math.floor((level - 1) / 3), 3); // 1..4
+    return { digits, mathQ };
+  }
+
+  function startRound() {
+    round++;
+    const cfg = getConfig();
+    const upd = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+    upd('dt-lv', level); upd('dt-rd', round); upd('dt-sc', score);
+
+    // Generate numbers to memorize
+    memNumbers = Array.from({length: cfg.digits}, () => Math.floor(Math.random() * 10));
+
+    showMemPhase(memNumbers, cfg);
+  }
+
+  function showMemPhase(nums, cfg) {
+    area.innerHTML = `
+      <div class="dual-wrap">
+        <div class="dual-phase-label">📋 Memorize these numbers</div>
+        <div class="dual-mem-display">
+          <div style="font-size:10px;color:var(--muted);letter-spacing:0.1em;margin-bottom:8px">REMEMBER THESE</div>
+          <div class="dual-numbers" id="dt-nums">${nums.join(' ')}</div>
+        </div>
+        <div style="font-size:12px;color:var(--muted);text-align:center">They will disappear soon...</div>
+      </div>
+    `;
+    // Show for 1.5s base + 0.6s per digit (was 1s + 0.4s)
+    const showTime = 1500 + cfg.digits * 600;
+    const t = setTimeout(() => showMathPhase(cfg, 0, 0), showTime);
+    gameState.timeoutIds.push(t);
+  }
+
+  function showMathPhase(cfg, qIndex, mathWrong) {
+    if (qIndex >= cfg.mathQ) {
+      // Done with math — go to recall
+      showRecallPhase(mathWrong, cfg);
+      return;
+    }
+
+    // Generate a math question
+    const ops = ['+', '-', '×'];
+    const op = ops[Math.floor(Math.random() * (level < 4 ? 2 : 3))];
+    let a, b, answer;
+    if (op === '+') { a = 5 + Math.floor(Math.random()*15*(1+level*0.3)); b = 5 + Math.floor(Math.random()*15*(1+level*0.3)); answer = a + b; }
+    else if (op === '-') { a = 10 + Math.floor(Math.random()*20*(1+level*0.2)); b = Math.floor(Math.random()*a*0.5)+1; answer = a - b; }
+    else { a = 2 + Math.floor(Math.random()*8); b = 2 + Math.floor(Math.random()*8); answer = a * b; }
+
+    // Wrong options
+    const offsets = shuffle([-3,-2,-1,1,2,3,4,-4,5,-5]).slice(0,3);
+    const opts = shuffle([answer, ...offsets.map(d => answer + d)]);
+
+    area.innerHTML = `
+      <div class="dual-wrap">
+        <div class="dual-phase-label">🧮 Solve this (${qIndex+1}/${cfg.mathQ})</div>
+        <div class="dual-math-box">
+          <div class="dual-math-eq">${a} ${op} ${b} = ?</div>
+          <div class="dual-math-opts">
+            ${opts.map(o => `<button class="dual-opt" onclick="dtMathTap(this,${o},${answer},${cfg.mathQ},${qIndex},${mathWrong})">${o}</button>`).join('')}
+          </div>
+        </div>
+        <div style="font-size:11px;color:var(--muted);text-align:center">Don't forget your numbers!</div>
+      </div>
+    `;
+  }
+
+  window.dtMathTap = function(btn, chosen, answer, totalQ, qIndex, prevWrong) {
+    const allBtns = document.querySelectorAll('.dual-opt');
+    allBtns.forEach(b => b.onclick = null);
+    const wrong = chosen !== answer ? 1 : 0;
+    btn.classList.add(chosen === answer ? 'correct-a' : 'wrong-a');
+    if (chosen !== answer) {
+      allBtns.forEach(b => { if (parseInt(b.textContent) === answer) b.classList.add('correct-a'); });
+    }
+    const t = setTimeout(() => showMathPhase({ mathQ: totalQ, digits: memNumbers.length }, qIndex + 1, prevWrong + wrong), 700);
+    gameState.timeoutIds.push(t);
+  };
+
+  function showRecallPhase(mathWrong, cfg) {
+    // Build the unique display options — always 0-9 so every digit is tappable
+    // We show all 10 digits as buttons; player taps until they've selected `needed` total
+    const needed = memNumbers.length;
+
+    // Count how many times each digit appears in memNumbers
+    const memCount = {};
+    memNumbers.forEach(d => { memCount[d] = (memCount[d] || 0) + 1; });
+
+    // selectedCount tracks how many times each digit has been tapped
+    const selectedCount = {};
+    let totalSelected = 0;
+
+    // Display all 10 digits (0-9) as tappable buttons
+    const allDigits = [0,1,2,3,4,5,6,7,8,9];
+
+    area.innerHTML = `
+      <div class="dual-wrap">
+        <div class="dual-phase-label">🧠 Recall the numbers</div>
+        <div class="dual-recall-prompt">Tap the ${needed} number${needed > 1 ? 's' : ''} you memorized — duplicates count!</div>
+        <div class="dual-recall-opts" id="dt-recall-opts">
+          ${allDigits.map(o => `<button class="dual-recall-opt" id="dro-${o}" onclick="dtRecallTap(${o})">${o}</button>`).join('')}
+        </div>
+        <div style="font-size:12px;color:var(--muted);text-align:center;margin-top:4px" id="dt-recall-hint">Selected: 0 / ${needed}</div>
+        <div id="dt-selected-display" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;min-height:32px;margin-top:2px"></div>
+      </div>
+    `;
+
+    function updateSelectedDisplay() {
+      const el = document.getElementById('dt-selected-display');
+      if (!el) return;
+      const all = [];
+      Object.keys(selectedCount).forEach(d => {
+        for (let i = 0; i < selectedCount[d]; i++) all.push(d);
+      });
+      el.innerHTML = all.map(d =>
+        `<span style="background:rgba(124,92,252,0.25);border:1px solid var(--accent);border-radius:8px;padding:4px 10px;font-family:'Syne',sans-serif;font-weight:800;font-size:16px;color:var(--accent)">${d}</span>`
+      ).join('');
+    }
+
+    window.dtRecallTap = function(val) {
+      if (totalSelected >= needed) return;
+      selectedCount[val] = (selectedCount[val] || 0) + 1;
+      totalSelected++;
+
+      // Visual feedback on button
+      const btn = document.getElementById(`dro-${val}`);
+      if (btn) {
+        btn.style.background = 'rgba(124,92,252,0.35)';
+        btn.style.borderColor = 'var(--accent)';
+        btn.style.color = 'var(--accent)';
+        // Show count badge if tapped more than once
+        const cnt = selectedCount[val];
+        btn.textContent = cnt > 1 ? `${val} ×${cnt}` : `${val}`;
+        setTimeout(() => {
+          if (document.getElementById(`dro-${val}`)) {
+            btn.style.background = '';
+            btn.style.borderColor = '';
+            btn.style.color = '';
+          }
+        }, 120);
+      }
+
+      updateSelectedDisplay();
+      const hint = document.getElementById('dt-recall-hint');
+      if (hint) hint.textContent = `Selected: ${totalSelected} / ${needed}`;
+
+      if (totalSelected === needed) {
+        // Evaluate: compare sorted arrays
+        const sortedSel = [];
+        Object.keys(selectedCount).forEach(d => {
+          for (let i = 0; i < selectedCount[d]; i++) sortedSel.push(parseInt(d));
+        });
+        sortedSel.sort((a,b) => a-b);
+        const sortedMem = [...memNumbers].sort((a,b) => a-b);
+        const correct = sortedSel.join(',') === sortedMem.join(',');
+
+        // Freeze all buttons
+        document.querySelectorAll('.dual-recall-opt').forEach(b => b.onclick = null);
+
+        // Highlight correct vs wrong per digit
+        allDigits.forEach(d => {
+          const b = document.getElementById(`dro-${d}`);
+          if (!b) return;
+          const tapCount = selectedCount[d] || 0;
+          const memC = memCount[d] || 0;
+          if (tapCount > 0) {
+            b.classList.add(tapCount === memC ? 'correct-a' : 'wrong-a');
+          } else if (memC > 0) {
+            b.classList.add('correct-a'); // missed one — show it
+          }
+        });
+
+        const mathBonus = (cfg.mathQ - mathWrong) * 5;
+        const recallBonus = correct ? (20 + level * 10) : 0;
+        score += mathBonus + recallBonus;
+        updateNavScore(score);
+        const sc = document.getElementById('dt-sc');
+        if (sc) sc.textContent = score;
+
+        if (correct) {
+          level++;
+          const t = setTimeout(startRound, 1400);
+          gameState.timeoutIds.push(t);
+        } else {
+          const t = setTimeout(() => {
+            recordScore(score, false);
+            showResult(false, 'Memory Slip!', `<strong>You recalled:</strong> ${sortedSel.join(', ')}<br><strong>Correct was:</strong> ${sortedMem.join(', ')}<br><strong>Reached Level:</strong> ${level}<br><strong>Score:</strong> ${score}`);
+          }, 1400);
+          gameState.timeoutIds.push(t);
+        }
+      }
+    };
+  }
+
+  startRound();
+}
+
+// ═══════════════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════════════
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+// Init home
+refreshHomeStats();
+</script>
+</body>
+</html>
